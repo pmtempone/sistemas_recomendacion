@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Jun 13 00:33:55 2017
+
+@author: pablotempone
+"""
+
+#ridge regression
+
+from sklearn import linear_model
+reg = linear_model.RidgeCV(alphas=[0.1, 1.0, 10.0])
+
+#partir en train y test
+from sklearn.model_selection import train_test_split
+
+train_df, test_df = train_test_split(train_new, test_size = 0.3)
+
+y = train_df.rating
+x = train_df.drop('rating',axis = 1)
+
+
+y_test = test_df.rating
+x_test = test_df.drop('rating',axis = 1)
+
+
+reg.fit(x,y)
+
+reg.coef_
+
+reg.alpha_ 
+
+# The coefficients
+print('Coefficients: \n', reg.coef_)
+# The mean squared error
+print("Mean squared error: %.2f"
+      % np.mean((reg.predict(x_test) - y_test) ** 2))
+# Explained variance score: 1 is perfect prediction
+print('Variance score: %.2f' % reg.score(x_test, y_test))

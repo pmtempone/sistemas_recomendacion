@@ -6,12 +6,12 @@ Created on Thu Jun  8 21:27:31 2017
 @author: pablotempone
 """
 
-import csv
 import numpy as np
 from sklearn.svm import SVR
 import matplotlib.pyplot as plt
 import pandas as pd
 import pickle
+from sklearn import linear_model
 
 svr_lin = SVR(kernel= 'linear', C= 1e3)
 svr_poly = SVR(kernel= 'poly', C= 1e3, degree= 2)
@@ -70,7 +70,7 @@ test_entrega_svm['rating'] = predict
 test_entrega_svm.to_csv('entrega_pablo_02_svm.csv',index=False)
 
 # save the model to disk
-filename = 'svm_rbf.sav'
+filename = '/Users/pablotempone/sistemas_recomendacion/sistemas_recomendacion/svm_rbf.sav'
 pickle.dump(svr_rbf, open(filename, 'wb'))
  
 # some time later...
@@ -79,3 +79,43 @@ pickle.dump(svr_rbf, open(filename, 'wb'))
 loaded_model = pickle.load(open(filename, 'rb'))
 result = loaded_model.score(X_test, Y_test)
 print(result)
+
+
+
+#regresion lineal
+#partir en train y test
+from sklearn.model_selection import train_test_split
+
+train_df, test_df = train_test_split(train_new, test_size = 0.3)
+
+y = train_df.rating
+x = train_df.drop('rating',axis = 1)
+
+
+reg = linear_model.LinearRegression()
+
+y_test = test_df.rating
+x_test = test_df.drop('rating',axis = 1)
+
+
+reg.fit(x,y)
+
+reg.coef_
+
+# The coefficients
+print('Coefficients: \n', reg.coef_)
+# The mean squared error
+print("Mean squared error: %.2f"
+      % np.mean((reg.predict(x_test) - y_test) ** 2))
+# Explained variance score: 1 is perfect prediction
+print('Variance score: %.2f' % reg.score(x_test, y_test))
+
+# Plot outputs
+plt.scatter(x_test['userId'], y_test,  color='black')
+plt.plot(x_test['userId'], reg.predict(x_test), color='blue',
+         linewidth=3)
+
+plt.xticks(())
+plt.yticks(())
+
+plt.show()
