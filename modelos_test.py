@@ -31,27 +31,48 @@ train_merge = pd.merge(train_merge,movie_directors,how='left',left_on='movieID',
 
 train_merge = train_merge.drop('directorID',axis = 1)
 
+
+test_merge = pd.merge(test,movie_countries,how='left',left_on='movieID',right_on='movieID')
+test_merge = pd.merge(test_merge,movie_directors,how='left',left_on='movieID',right_on='movieID')
+
+test_merge = test_merge.drop('directorID',axis = 1)
+
+total = train_merge.append(test_merge)
+
+total = pd.get_dummies(total)
+
+
 train_merge = pd.get_dummies(train_merge)
+
+
+test_merge = pd.merge(test,movie_countries,how='left',left_on='movieID',right_on='movieID')
+test_merge = pd.merge(test_merge,movie_directors,how='left',left_on='movieID',right_on='movieID')
+
+test_merge = test_merge.drop('directorID',axis = 1)
+
+test_merge = pd.get_dummies(test_merge)
 
 plt.hist(train['rating'], bins=10)
 
 
 #ridge regression
 
-from sklearn import linear_model
 reg = linear_model.RidgeCV(alphas=[0.1, 1.0,2.0,5.0,7.0,10.0])
 
 #partir en train y test
 from sklearn.model_selection import train_test_split
 
 indice = train.index
-indice_train = 0:(round(indice.max()*70/100,0))
 
 train_merge = train_merge.drop('directorName',axis=1)
 
-train_df, test_df = train[]
+train_total, test_total = total[0:770088], total[770089:8555598]
 
-train_df, test_df = train_test_split(train_merge, test_size = 0.1)
+del train_merge
+
+train_df, test_df = train_test_split(train_total, test_size = 0.1)
+
+del train_total
 
 y = train_df.rating
 x = train_df.drop('rating',axis = 1)
@@ -60,6 +81,10 @@ x = train_df.drop('rating',axis = 1)
 y_test = test_df.rating
 x_test = test_df.drop('rating',axis = 1)
 
+del train_df,test_df
+del test_merge
+del train,movie_actors,test,movie_locations
+del total
 
 reg.fit(x,y)
 
@@ -92,36 +117,43 @@ prediccion_test = np.round_(prediccion_test, decimals=1, out=None)
 #random forest reggresion
 
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.multioutput import MultiOutputRegressor
 
 max_depth = 30
-regr_multirf = MultiOutputRegressor(RandomForestRegressor(max_depth=max_depth,
-                                                          random_state=0))
-regr_multirf.fit(x, y)
+
 
 regr_rf = RandomForestRegressor(max_depth=max_depth, random_state=2)
 regr_rf.fit(x, y)
 
-# Predict on new data
-y_multirf = regr_multirf.predict(x)
-y_rf = regr_rf.predict(X_test)
+import pickle
 
-# Plot the results
-plt.figure()
-s = 50
-a = 0.4
-plt.scatter(y_test[:, 0], y_test[:, 1],
-            c="navy", s=s, marker="s", alpha=a, label="Data")
-plt.scatter(y_multirf[:, 0], y_multirf[:, 1],
-            c="cornflowerblue", s=s, alpha=a,
-            label="Multi RF score=%.2f" % regr_multirf.score(X_test, y_test))
-plt.scatter(y_rf[:, 0], y_rf[:, 1],
-            c="c", s=s, marker="^", alpha=a,
-            label="RF score=%.2f" % regr_rf.score(X_test, y_test))
-plt.xlim([-6, 6])
-plt.ylim([-6, 6])
-plt.xlabel("target 1")
-plt.ylabel("target 2")
-plt.title("Comparing random forests and the multi-output meta estimator")
-plt.legend()
-plt.show()
+# save the model to disk
+filename = '/Users/pablotempone/sistemas_recomendacion/sistemas_recomendacion/rf_reg_01.sav'
+pickle.dump(regr_rf, open(filename, 'wb'))
+
+
+# Predict on new data
+
+
+y_rf = regr_rf.predict(x_test)
+
+np.round(y_rf,1)
+# The mean squared error
+print("Mean squared error: %.2f"
+      % np.mean((np.round(y_rf,1) - y_test) ** 2))
+# Explained variance score: 1 is perfect prediction
+print('Variance score: %.2f' % regr_rf.score(x_test, y_test))
+
+test_merge_pred = test_total.drop('rating',axis = 1)
+
+predict_test = regr_rf.predict(test_merge_pred)
+
+predict_test = np.round(predict_test,1)
+
+predict_test.max()
+predict_test.min()
+
+test = test.drop('rating',axis=1)
+
+test['rating'] = predict_test
+
+test[['userID','movieID','rating']].to_csv('pablot-01-rf.csv',index=False)
