@@ -64,7 +64,6 @@ from sklearn.model_selection import train_test_split
 
 indice = train.index
 
-train_merge = train_merge.drop('directorName',axis=1)
 
 train_total, test_total = total[0:770088], total[770089:8555598]
 
@@ -129,7 +128,6 @@ import pickle
 # save the model to disk
 filename = '/Users/pablotempone/sistemas_recomendacion/sistemas_recomendacion/rf_reg_01.sav'
 pickle.dump(regr_rf, open(filename, 'wb'))
-
 
 # Predict on new data
 
