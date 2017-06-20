@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jun 18 20:33:56 2017
+
+@author: pablotempone
+"""
+
+
+import numpy as np
+from sklearn import linear_model
+
+from sklearn.model_selection import train_test_split
+
+
+
+train_df, test_df = train_test_split(train_total, test_size = 0.1)
+x = train_df.drop('rating',axis=1)
+y = train_df.rating
+clf = linear_model.SGDRegressor()
+clf.fit(x, y)
+
+
+
+from sklearn.cross_validation import KFold
+from sklearn.linear_model import LinearRegression, Lasso, Ridge, ElasticNet, SGDRegressor
+import numpy as np
+import pylab as pl
+
+# In order to do multiple regression we need to add a column of 1s for x0
+x = np.array([np.concatenate((v,[1])) for v in train_df.drop('rating',axis = 1).as_matrix()])
+x = train_df.drop('rating',axis = 1).as_matrix()
+y = train_df.rating.as_matrix()
+
+# Create linear regression object
+linreg = LinearRegression()
+
+# Train the model using the training sets
+linreg.fit(x,y)
+
+x_test = test_df.drop('rating',axis=1).as_matrix()
+y_test = test_df.rating
+print(linreg.predict(x_test))
+
+print("Mean squared error: %.2f"
+      % np.mean((linreg.predict(x_test) - y_test) ** 2))
+# Explained variance score: 1 is perfect prediction
+print('Variance score: %.2f' % linreg.score(x_test, y_test))
+
+
+# Now let's compute RMSE using 10-fold x-validation
+kf = KFold(len(x), n_folds=10)
+xval_err = 0
+
+x = x.as_matrix()
+y = y.as_matrix()
+for train,test in kf:
+    linreg.fit(x[train],y[train])
+    # p = np.array([linreg.predict(xi) for xi in x[test]])
+    p = linreg.predict(x[test])
+    e = p-y[test]
+    xval_err += np.dot(e,e)
+    
+rmse_10cv = np.sqrt(xval_err/len(x))
+
+method_name = 'Simple Linear Regression'
+print('Method: %s' %method_name)
+print('RMSE on 10-fold CV: %.4f' %rmse_10cv)
+
+# Create linear regression object with a ridge coefficient 0.5
+ridge = Ridge(fit_intercept=True, alpha=0.5)
+
+# Train the model using the training set
+ridge.fit(x,y)
+
+# Compute RMSE on training data
+# p = np.array([ridge.predict(xi) for xi in x])
+p = ridge.predict(x)
+err = p-y
+total_error = np.dot(err,err)
+rmse_train = np.sqrt(total_error/len(p))
+
+# Compute RMSE using 10-fold x-validation
+kf = KFold(len(x), n_folds=10)
+xval_err = 0
+for train,test in kf:
+    ridge.fit(x[train],y[train])
+    p = ridge.predict(x[test])
+    e = p-y[test]
+    xval_err += np.dot(e,e)
+rmse_10cv = np.sqrt(xval_err/len(x))
+
+method_name = 'Ridge Regression'
+print('Method: %s' %method_name)
+print('RMSE on training: %.4f' %rmse_train)
+print('RMSE on 10-fold CV: %.4f' %rmse_10cv)
+
+
+# SGD is very senstitive to varying-sized feature values. So, first we need to do feature scaling.
+
+from sklearn.preprocessing import StandardScaler
+
+
+scaler = StandardScaler()
+scaler.fit(x.as_matrix())
+x_s = scaler.transform(x.as_matrix())
+
+sgdreg = SGDRegressor(penalty='l2', alpha=0.15, n_iter=200)
+
+# Compute RMSE on training data
+sgdreg.fit(x_s,y)
+p = sgdreg.predict(x_s)
+err = p-y
+total_error = np.dot(err,err)
+rmse_train = np.sqrt(total_error/len(p))
+
+# Compute RMSE using 10-fold x-validation
+kf = KFold(len(x), n_folds=10)
+xval_err = 0
+for train,test in kf:
+    scaler = StandardScaler()
+    scaler.fit(x[train])  # Don't cheat - fit only on training data
+    xtrain_s = scaler.transform(x[train])
+    xtest_s = scaler.transform(x[test])  # apply same transformation to test data
+    sgdreg.fit(xtrain_s,y[train])
+    p = sgdreg.predict(xtest_s)
+    e = p-y[test]
+    xval_err += np.dot(e,e)
+rmse_10cv = np.sqrt(xval_err/len(x))
+
+method_name = 'Stochastic Gradient Descent Regression'
+print('Method: %s' %method_name)
+print('RMSE on training: %.4f' %rmse_train)
+print('RMSE on 10-fold CV: %.4f' %rmse_10cv)
+
+x_test_s = scaler.fit(x_test)
+x_test_s = scaler.transform(x_te)
+predict_sgd = sgdreg.predict(x_test_s)
