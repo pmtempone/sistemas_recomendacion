@@ -84,6 +84,13 @@ del train_df,test_df
 del test_merge
 del train,movie_actors,test,movie_locations
 del total
+del movie_countries
+del movie_directors
+del movie_imdb
+del movie_genres
+
+
+
 
 reg.fit(x,y)
 
