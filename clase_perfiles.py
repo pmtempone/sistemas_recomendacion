@@ -61,16 +61,20 @@ movie_similarity = pairwise_distances(movie_matrix, metric='cosine')
 R_df = train.pivot(index = 'userID', columns ='movieID', values = 'rating').fillna(0)
 R_df.head()
 
+R_df_na = train.pivot(index = 'userID', columns ='movieID', values = 'rating')
+R_na = R_df_na.as_matrix()
 
 R = R_df.as_matrix()
-user_ratings_mean = np.mean(R, axis = 1)
+user_ratings_mean = np.nanmean(R_na, axis = 1)
 
 user_similarity = pairwise_distances(R, metric='cosine')
 
 
-def predict(ratings, similarity, type='user'):
+
+def predict(ratings,ratings_na, similarity, type='user'):
+
     if type == 'user':
-        mean_user_rating = ratings.mean(axis=1)
+        mean_user_rating = np.nanmean(ratings_na,axis=1)
         #You use np.newaxis so that mean_user_rating has same format as ratings
         ratings_diff = (ratings - mean_user_rating[:, np.newaxis])
         pred = mean_user_rating[:, np.newaxis] + similarity.dot(ratings_diff) / np.array([np.abs(similarity).sum(axis=1)]).T
@@ -78,18 +82,24 @@ def predict(ratings, similarity, type='user'):
         pred = ratings.dot(similarity) / np.array([np.abs(similarity).sum(axis=1)])
     return pred
 
+prueba_mean
+mean_user_rating = R_na.nanmean(axis=1)
 
-mean_user_rating = R.mean(axis=1)
+ratings_diff = (R - user_ratings_mean[:, np.newaxis])
 
-promedios = mean_user_rating[:, np.newaxis]
 
-ratings_diff = (R - mean_user_rating[:, np.newaxis])
-
-user_prediction = predict(R, user_similarity, type='user')
+promedios = user_ratings_mean[:, np.newaxis]
 
 matriz = user_similarity.dot(ratings_diff)
 
 divisor = np.array([np.abs(user_similarity).sum(axis=1)]).T
+
+division = matriz/divisor
+
+
+user_prediction = predict(R,R_na, user_similarity, type='user')
+
+
 #evaluacion
 
 from sklearn.metrics import mean_squared_error
@@ -103,3 +113,29 @@ def rmse(prediction, ground_truth):
 
 
 print( 'basado en similaridad CF RMSE: ' + str(rmse(user_prediction, R)))
+
+
+#normalizado los valores y modificado columnas e indices
+
+R = R_df.as_matrix()
+user_ratings_mean = np.mean(R, axis = 1)
+R_demeaned = R - user_ratings_mean.reshape(-1, 1)
+
+from scipy.sparse.linalg import svds
+U, sigma, Vt = svds(R, k = 50)
+
+sigma = np.diag(sigma)
+
+all_user_predicted_ratings = np.dot(np.dot(U, sigma), Vt) + user_ratings_mean.reshape(-1, 1)
+preds_df = pd.DataFrame(all_user_predicted_ratings, columns = R_df.columns)
+
+from scipy.sparse.linalg import svds
+U, sigma, Vt = svds(R_demeaned, k = 50)
+
+normalized = (preds_df-min(preds_df))/(max(preds_df)-min(preds_df))
+
+from sklearn import preprocessing
+
+min_max_scaler = preprocessing.MinMaxScaler(feature_range=(0, 5))
+x_scaled = min_max_scaler.fit_transform(preds_df)
+df = pd.DataFrame(x_scaled,columns=train.movieID.unique(),index=train.userID.unique())
