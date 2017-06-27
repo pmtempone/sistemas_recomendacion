@@ -58,10 +58,10 @@ movie_similarity = pairwise_distances(movie_matrix, metric='cosine')
 
 #predecir en base a los puntajes
 
-R_df = train.pivot(index = 'userID', columns ='movieID', values = 'rating').fillna(0)
+R_df = train_df.pivot(index = 'userID', columns ='movieID', values = 'rating').fillna(0)
 R_df.head()
 
-R_df_na = train.pivot(index = 'userID', columns ='movieID', values = 'rating')
+R_df_na = train_df.pivot(index = 'userID', columns ='movieID', values = 'rating')
 R_na = R_df_na.as_matrix()
 
 R = R_df.as_matrix()
