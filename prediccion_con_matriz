@@ -200,3 +200,33 @@ print("Mean squared error: %.2f"
 
 #rmse 0.98 en test, solo usando peliculas y puntajes de usuarios. Prueba con coseno por generos
 
+###modelo usando variables de genero
+
+from sklearn.model_selection import train_test_split
+
+train_df, test_df = train_test_split(train, test_size = 0.1)
+
+train_genres = pd.merge(train_df,movie_genres,how='left',left_on='movieID',right_on='movieID')
+
+usuarios_generos = pd.get_dummies(train_genres[['userID','genre']])
+
+usuarios_generos = usuarios_generos.groupby('userID',as_index=False).sum()
+
+usuarios_generos["sum"] = usuarios_generos.sum(axis=1)
+
+usuarios_generos_perfil = usuarios_generos.loc[:,'genre_Action':'genre_Western'].div(usuarios_generos["sum"], axis=0)
+
+#usuarios_generos_perfil.index = usuarios_generos.userID
+
+from sklearn.metrics.pairwise import pairwise_distances
+
+#matriz coseno de usuarios
+
+user_matrix = usuarios_generos.as_matrix()
+
+
+user_similarity = pairwise_distances(user_matrix, metric='cosine')
+
+user_similarity.max()
+
+matriz_pred = np.multiply(user_similarity,4.5)
