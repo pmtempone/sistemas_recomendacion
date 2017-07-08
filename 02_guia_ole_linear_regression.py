@@ -64,26 +64,52 @@ print("Mean squared error: %.2f"
 
 model_comida = linear_model.LinearRegression()  
 
-model_comida.fit(train_data[['rating_ambiente_usuario','rating_ambiente_rest']], train_data.rating_ambiente)  
+model_comida.fit(train_data[['rating_comida_usuario','rating_comida_rest']], train_data.rating_ambiente)  
 
 # The coefficients
 print('Coefficients: \n', model_comida.coef_)
 # The mean squared error
 
-test_data_completa = test_data[['id_usuario','id_restaurante','rating_ambiente_usuario','rating_ambiente_rest']].dropna()
+test_data_completa = test_data[['id_usuario','id_restaurante','rating_comida_usuario','rating_comida_rest']].dropna()
 
-test_data_incompleta = test_data[['id_usuario','id_restaurante','rating_ambiente_usuario','rating_ambiente_rest']][~test_data.index.isin(test_data_completa.index)]
+test_data_incompleta = test_data[['id_usuario','id_restaurante','rating_comida_usuario','rating_comida_rest']][~test_data.index.isin(test_data_completa.index)]
 
-global_mean_ambiente = train_data.rating_ambiente.mean()
+global_mean_comida = train_data.rating_comida.mean()
 
-test_data_incompleta['rating_ambiente_pred'] = global_mean_ambiente
+test_data_incompleta['rating_comida_pred'] = global_mean_comida
 
-y_pred = model_comida.predict(test_data_completa[['rating_ambiente_usuario','rating_ambiente_rest']])
+y_pred = model_comida.predict(test_data_completa[['rating_comida_usuario','rating_comida_rest']])
 
-test_data_completa['rating_ambiente_pred'] = y_pred
+test_data_completa['rating_comida_pred'] = y_pred
 
 test_data_pred = pd.concat([test_data_completa,test_data_incompleta]).sort_index()
 
 print("Mean squared error: %.2f"
-      % np.mean((test_data_pred.rating_ambiente_pred - test_data.rating_ambiente) ** 2))
+      % np.mean((test_data_pred.rating_comida_pred - test_data.rating_comida) ** 2))
 
+###regresion del servicio
+
+model_servicio = linear_model.LinearRegression()  
+
+model_servicio.fit(train_data[['rating_servicio_usuario','rating_servicio_rest']], train_data.rating_ambiente)  
+
+# The coefficients
+print('Coefficients: \n', model_servicio.coef_)
+# The mean squared error
+
+test_data_completa = test_data[['id_usuario','id_restaurante','rating_servicio_usuario','rating_servicio_rest']].dropna()
+
+test_data_incompleta = test_data[['id_usuario','id_restaurante','rating_servicio_usuario','rating_servicio_rest']][~test_data.index.isin(test_data_completa.index)]
+
+global_mean_servicio = train_data.rating_servicio.mean()
+
+test_data_incompleta['rating_servicio_pred'] = global_mean_servicio
+
+y_pred = model_servicio.predict(test_data_completa[['rating_servicio_usuario','rating_servicio_rest']])
+
+test_data_completa['rating_servicio_pred'] = y_pred
+
+test_data_pred = pd.concat([test_data_completa,test_data_incompleta]).sort_index()
+
+print("Mean squared error: %.2f"
+      % np.mean((test_data_pred.rating_servicio_pred - test_data.rating_servicio) ** 2))
