@@ -113,3 +113,65 @@ test_data_pred = pd.concat([test_data_completa,test_data_incompleta]).sort_index
 
 print("Mean squared error: %.2f"
       % np.mean((test_data_pred.rating_servicio_pred - test_data.rating_servicio) ** 2))
+
+
+## predict entrega 1
+
+test = pd.read_csv("/Volumes/Disco_SD/Set de datos/guia_oleo/ratings_test.csv",sep = ',',encoding = "ISO-8859-1")
+
+
+def pred_reg_lineal (set_train,set_test):
+    mean_user = set_train[['id_usuario','rating_ambiente','rating_comida','rating_servicio']].groupby('id_usuario',as_index=False).mean()
+    mean_user.columns = ['id_usuario','rating_ambiente_usuario','rating_comida_usuario','rating_servicio_usuario']
+    
+    
+    mean_restaurant = set_train[['id_restaurante','rating_ambiente','rating_comida','rating_servicio']].groupby('id_restaurante',as_index=False).mean()
+    mean_restaurant.columns = ['id_restaurante','rating_ambiente_rest','rating_comida_rest','rating_servicio_rest']
+    
+    test_entrega = pd.merge(set_test,mean_user, how='left',left_on='id_usuario',right_on='id_usuario')
+    test_entrega = pd.merge(test_entrega,mean_restaurant, how='left',left_on='id_restaurante',right_on='id_restaurante')
+    
+    train_entrega = pd.merge(set_train,mean_user, how='left',left_on='id_usuario',right_on='id_usuario')
+    train_entrega = pd.merge(train_entrega,mean_restaurant, how='left',left_on='id_restaurante',right_on='id_restaurante')
+    
+    model_ambiente = linear_model.LinearRegression()  
+    
+    model_comida = linear_model.LinearRegression()  
+
+    model_servicio = linear_model.LinearRegression()  
+
+    model_ambiente.fit(train_entrega[['rating_ambiente_usuario','rating_ambiente_rest']], train_entrega.rating_ambiente)  
+    model_comida.fit(train_entrega[['rating_comida_usuario','rating_comida_rest']], train_entrega.rating_comida)
+    model_servicio.fit(train_entrega[['rating_servicio_usuario','rating_servicio_rest']], train_entrega.rating_servicio)
+    
+    test_data_completa = test_entrega[['id_usuario','id_restaurante','fecha','rating_ambiente_usuario','rating_ambiente_rest']].dropna()
+    
+    test_data_incompleta = test_entrega[['id_usuario','id_restaurante','fecha','rating_ambiente_usuario','rating_ambiente_rest']][~test_entrega.index.isin(test_data_completa.index)]
+        
+    global_mean_ambiente = set_train.rating_ambiente.mean()
+        
+    global_mean_comida = set_train.rating_comida.mean()
+
+    global_mean_servicio= set_train.rating_servicio.mean()
+
+    test_data_incompleta['rating_ambiente_pred'] = global_mean_ambiente
+    test_data_incompleta['rating_comida_pred'] = global_mean_comida
+    test_data_incompleta['rating_servicio_pred'] = global_mean_servicio
+    
+        
+    pred_ambiente =  model_ambiente.predict(test_data_completa[['rating_ambiente_usuario','rating_ambiente_rest']])
+    
+    pred_comida =  model_comida.predict(test_data_completa[['rating_comida_usuario','rating_comida_rest']])
+    
+    pred_servicio =  model_servicio.predict(test_data_completa[['rating_servicio_usuario','rating_servicio_rest']])
+
+    test_data_completa['rating_ambiente_pred'] = pred_ambiente
+    test_data_completa['rating_comida_pred'] = pred_comida
+    test_data_completa['rating_servicio_pred'] = pred_servicio
+    
+    test_data_pred = pd.concat([test_data_completa,test_data_incompleta]).sort_index()
+    
+    return test_data_pred
+
+
+entrega = pred_reg_lineal(train,test)
