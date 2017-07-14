@@ -144,9 +144,9 @@ def pred_reg_lineal (set_train,set_test):
     model_comida.fit(train_entrega[['rating_comida_usuario','rating_comida_rest']], train_entrega.rating_comida)
     model_servicio.fit(train_entrega[['rating_servicio_usuario','rating_servicio_rest']], train_entrega.rating_servicio)
     
-    test_data_completa = test_entrega[['id_usuario','id_restaurante','fecha','rating_ambiente_usuario','rating_ambiente_rest']].dropna()
+    test_data_completa = test_entrega[['id_usuario','id_restaurante','fecha','rating_ambiente_usuario','rating_ambiente_rest','rating_comida_usuario','rating_comida_rest','rating_servicio_usuario','rating_servicio_rest']].dropna()
     
-    test_data_incompleta = test_entrega[['id_usuario','id_restaurante','fecha','rating_ambiente_usuario','rating_ambiente_rest']][~test_entrega.index.isin(test_data_completa.index)]
+    test_data_incompleta = test_entrega[['id_usuario','id_restaurante','fecha','rating_ambiente_usuario','rating_ambiente_rest','rating_comida_usuario','rating_comida_rest','rating_servicio_usuario','rating_servicio_rest']][~test_entrega.index.isin(test_data_completa.index)]
         
     global_mean_ambiente = set_train.rating_ambiente.mean()
         
@@ -154,24 +154,36 @@ def pred_reg_lineal (set_train,set_test):
 
     global_mean_servicio= set_train.rating_servicio.mean()
 
-    test_data_incompleta['rating_ambiente_pred'] = global_mean_ambiente
-    test_data_incompleta['rating_comida_pred'] = global_mean_comida
-    test_data_incompleta['rating_servicio_pred'] = global_mean_servicio
+    test_data_incompleta['rating_ambiente_pred'] = round(global_mean_ambiente,2)
+    test_data_incompleta['rating_comida_pred'] = round(global_mean_comida,2)
+    test_data_incompleta['rating_servicio_pred'] = round(global_mean_servicio,2)
     
         
-    pred_ambiente =  model_ambiente.predict(test_data_completa[['rating_ambiente_usuario','rating_ambiente_rest']])
+    pred_ambiente =  np.round(model_ambiente.predict(test_data_completa[['rating_ambiente_usuario','rating_ambiente_rest']]))
     
-    pred_comida =  model_comida.predict(test_data_completa[['rating_comida_usuario','rating_comida_rest']])
+    pred_comida =  np.round(model_comida.predict(test_data_completa[['rating_comida_usuario','rating_comida_rest']]))
     
-    pred_servicio =  model_servicio.predict(test_data_completa[['rating_servicio_usuario','rating_servicio_rest']])
+    pred_servicio =  np.round(model_servicio.predict(test_data_completa[['rating_servicio_usuario','rating_servicio_rest']]))
 
-    test_data_completa['rating_ambiente_pred'] = pred_ambiente
-    test_data_completa['rating_comida_pred'] = pred_comida
-    test_data_completa['rating_servicio_pred'] = pred_servicio
+    test_data_completa['rating_ambiente_pred'] = np.round(pred_ambiente)
+    test_data_completa['rating_comida_pred'] = np.round(pred_comida)
+    test_data_completa['rating_servicio_pred'] = np.round(pred_servicio)
     
     test_data_pred = pd.concat([test_data_completa,test_data_incompleta]).sort_index()
+    
+    test_data_pred['rating_ambiente_pred'] = np.absolute(np.where(test_data_pred['rating_ambiente_pred']<0,0,np.where(test_data_pred['rating_ambiente_pred']>3,3,test_data_pred['rating_ambiente_pred'])))
+    test_data_pred['rating_comida_pred'] = np.absolute(np.where(test_data_pred['rating_comida_pred']<0,0,np.where(test_data_pred['rating_comida_pred']>3,3,test_data_pred['rating_comida_pred'])))
+    test_data_pred['rating_servicio_pred'] = np.absolute(np.where(test_data_pred['rating_servicio_pred']<0,0,np.where(test_data_pred['rating_servicio_pred']>3,3,test_data_pred['rating_servicio_pred'])))
+
+    test_data_pred.columns = ['id_usuario', 'id_restaurante', 'fecha', 'rating_ambiente_usuario',
+       'rating_ambiente_rest', 'rating_comida_usuario', 'rating_comida_rest',
+       'rating_servicio_usuario', 'rating_servicio_rest',
+       'rating_ambiente', 'rating_comida', 'rating_servicio']
+
     
     return test_data_pred
 
 
 entrega = pred_reg_lineal(train,test)
+
+entrega[['id_usuario','id_restaurante','fecha','rating_ambiente', 'rating_comida', 'rating_servicio']].to_csv('pablot-01-rl.csv',index=False)
