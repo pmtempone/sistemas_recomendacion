@@ -72,6 +72,9 @@ x = vectorizer.fit_transform(train["comentario"].values.astype('U'))  ## Even as
 
 x.shape
 
+df_rest = pd.concat(([train['restaurante'].reset_index(drop=True), df_b], axis=1))
+
+
 vectorizer.vocabulary_.get('bueno')
 
 vectorizer.vocabulary_.get('excelente')
@@ -82,12 +85,13 @@ from sklearn.cross_validation import cross_val_score
 from sklearn.svm import LinearSVC
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
+from sklearn.neighbors import KNeighborsRegressor
 
 #LinearSVC() es el clasificador
 
 pipeline = Pipeline([
     ('vect', vectorizer),
-    ('cls', LinearSVC()),
+    ('cls', KNeighborsRegressor()),
 ])
     
     
@@ -96,13 +100,11 @@ parameters = {
     'vect__min_df': (10, 20,50),
     'vect__max_features': (500, 1000),
     'vect__ngram_range': ((1, 1), (1, 2)),  # unigrams or bigrams
-    'cls__C': (0.2, 0.5, 0.7),
-    'cls__loss': ('hinge', 'squared_hinge'),
-    'cls__max_iter': (500, 1000)
+    'cls__n_neighbors': (5,10,20,50),
+    'cls__weights': ('uniform', 'distance')
 }
 
-grid_search = GridSearchCV(pipeline, parameters, n_jobs=-1 , scoring='roc_auc')
+grid_search = GridSearchCV(pipeline, parameters, n_jobs=-1)
 
-train['positivo'] = np.where(train['rating_ambiente']>1, 'SI', 'NO')
 
-grid_search.fit(train["comentario"].values.astype('U'), train.positivo)
+grid_search.fit(train["comentario"].values.astype('U'), train.rating_ambiente)
