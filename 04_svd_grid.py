@@ -55,6 +55,28 @@ print(grid_search.best_params['RMSE'])
 results_df = pd.DataFrame.from_dict(grid_search.cv_results)
 print(results_df)
 
+results_df.to_csv('svd_grid_search.csv')
+
+#entrenar con todo y los mejores parametros
+algo = SVD(n_epochs = 100,lr_all=0.002,reg_all=0.2)
+trainset= data.build_full_trainset()
+algo.train(trainset)
+
+#predict con test
+
+test_ambiente = pd.DataFrame()
+
+variable = algo.predict(test.id_usuario.astype(str)[0],test.id_restaurante.astype(str)[0])
+
+algo.predict('5869a81632c19',1751).est
+
+for i in range(0,len(test.index)-1):
+    variable = algo.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est
+    test_ambiente.append(variable)
+
+
+
+
 #KNN
 from surprise import KNNBasic
 
