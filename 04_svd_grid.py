@@ -66,16 +66,85 @@ algo.train(trainset)
 
 test_ambiente = pd.DataFrame()
 
-variable = algo.predict(test.id_usuario.astype(str)[0],test.id_restaurante.astype(str)[0])
-
-algo.predict('5869a81632c19',1751).est
-
-for i in range(0,len(test.index)-1):
-    variable = algo.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est
-    test_ambiente.append(variable)
 
 
+for i in range(0,len(test.index)):
+    variable = pd.DataFrame(pd.Series(algo.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+    test_ambiente = test_ambiente.append(variable, ignore_index = True)
 
+## busqueda de rating_comida
+
+train[['id_usuario','id_restaurante','rating_comida','fecha']].to_csv('surprise_comida.csv',index= False)
+
+file_path ='surprise_comida.csv'
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+data.split(n_folds=40)
+
+# We'll use the famous SVD algorithm.
+algo_comida = SVD()
+
+# Evaluate performances of our algorithm on the dataset.
+perf = evaluate(algo_comida, data, measures=['RMSE', 'MAE'])
+
+print_perf(perf)
+
+#grid search
+
+param_grid = {'n_epochs': [5, 10,50,100], 'lr_all': [0.002, 0.005],
+              'reg_all': [0.2,0.3,0.4]}
+
+grid_search = GridSearch(SVD, param_grid, measures=['RMSE', 'FCP'])
+
+grid_search.evaluate(data)
+
+print(grid_search.best_score['RMSE'])
+
+print(grid_search.best_params['RMSE'])
+
+results_df = pd.DataFrame.from_dict(grid_search.cv_results)
+print(results_df)
+
+results_df.to_csv('svd_grid_search_comida.csv')
+
+### busqueda de rating_servicio
+
+train[['id_usuario','id_restaurante','rating_servicio','fecha']].to_csv('surprise_servicio.csv',index= False)
+
+file_path ='surprise_servicio.csv'
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+data.split(n_folds=5)
+
+# We'll use the famous SVD algorithm.
+algo_comida = SVD()
+
+# Evaluate performances of our algorithm on the dataset.
+perf = evaluate(algo_comida, data, measures=['RMSE', 'MAE'])
+
+print_perf(perf)
+
+#grid search
+
+param_grid = {'n_epochs': [5, 10,50,100], 'lr_all': [0.002, 0.005],
+              'reg_all': [0.2,0.3]}
+
+grid_search = GridSearch(SVD, param_grid, measures=['RMSE', 'FCP'])
+
+grid_search.evaluate(data)
+
+print(grid_search.best_score['RMSE'])
+
+print(grid_search.best_params['RMSE'])
+
+results_df = pd.DataFrame.from_dict(grid_search.cv_results)
+print(results_df)
+
+results_df.to_csv('svd_grid_search_ambiente.csv')
 
 #KNN
 from surprise import KNNBasic

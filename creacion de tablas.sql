@@ -22,3 +22,25 @@ select id_restaurante,localidad,cocina,precio,
        fotos
 into rest_campos
 from restaurantes
+
+-- base para entrenar rf
+
+select a.*,b.edad,b.fecha_alta,b.genero,b.tipo, 
+	   c.localidad,c.cocina,c.precio,c.telefono, c.comida_oleo,c.servicio_oleo,c.ambiente_oleo,
+       c.fotos
+into train_completo_v1
+from
+ratings_train a,usuarios b,rest_campos c
+where a.id_usuario=b.id_usuario
+and cast(a.id_restaurante as text)=c.id_restaurante
+
+-- saco los clientes que comentaron 1 sola vez
+
+select * 
+into ratings_train_reducido
+from ratings_train
+where id_usuario in (select id_usuario from (select id_usuario,count(id_usuario)
+from ratings_train
+group by id_usuario
+having count(id_usuario)>4) a)
+
