@@ -57,6 +57,6 @@ restaurantes_recomendado = pd.concat([restaurantes_recomendado,medios],axis = 1)
 restaurantes_recomendado.iloc[:,37:46] = restaurantes_recomendado.iloc[:,37:46].fillna(0)
 
 from sqlalchemy import create_engine
-engine = create_engine('postgresql://postgres:saga305@localhost:5432/sistemas_recomendacion')
+engine = create_engine('postgresql://postgres:pass@localhost:5432/sistemas_recomendacion')
 
 restaurantes_recomendado.to_sql('restaurantes_v2', engine,index=False)
