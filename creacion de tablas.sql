@@ -44,3 +44,41 @@ from ratings_train
 group by id_usuario
 having count(id_usuario)>4) a)
 
+ -- saco los clientes que comentaron menos de 4 veces y que tienen mas de 3 en algun rating
+
+ select * 
+into ratings_train_reducido_nomayor3
+from ragtings_train_nomayor3
+where id_usuario in (select id_usuario from (select id_usuario,count(id_usuario)
+from ragtings_train_nomayor3
+group by id_usuario
+having count(id_usuario)>4) a)
+
+---sacamos los restaurantes duplicados
+
+select distinct * 
+into restaurantes_v3
+from restaurantes_v2
+
+---tabla para sacar duplicados con python
+
+select *,"Ir en pareja"+ "Ir con amigos"+ "Comer con buenos tragos"+ "Llevar extranjeros"+ "Escuchar música"+ "Comer sin ser visto"+ "Comer al aire libre"+ "Comer solo"+ "Reunión de negocios"+ "Salida de amigas"+ "Comer bien gastando poco"+ "Ir con la familia"+ "Comer tarde"+ "Comer sano "+ "Merendar"+ "Comer mucho"+ "Ir con chicos"+ "American Express"+ "Cabal"+ "Diners"+ "Electrón"+ "Maestro"+ "Mastercard"+ "Sólo Efectivo"+ "Tarjeta Naranja"+ "Visa" as suma_filtro
+into restaurantes_v4
+from restaurantes_v3
+order by suma_filtro
+
+---tabla restaurantes para joinear v2
+
+select id_restaurante, localidad, cocina, precio, latitud, longitud, fotos, premios, "Ir en pareja", "Ir con amigos", "Comer con buenos tragos", "Llevar extranjeros", "Escuchar música", "Comer sin ser visto", "Comer al aire libre", "Comer solo", "Reunión de negocios", "Salida de amigas", "Comer bien gastando poco", "Ir con la familia", "Comer tarde", "Comer sano ", "Merendar", "Comer mucho", "Ir con chicos", "American Express", "Cabal", "Diners", "Electrón", "Maestro", "Mastercard", "Sólo Efectivo", "Tarjeta Naranja", "Visa"
+	   ,case when telefono is not null then 1 else 0 end as telefono,       
+	   case when char_length(rating_comida)>4 then 
+       cast(substr(rating_comida,1,2) as numeric)/30 
+       else cast(substr(rating_comida,1,1) as numeric)/30 end comida_oleo,
+       case when char_length(rating_servicio)>4 then 
+       cast(substr(rating_servicio,1,2) as numeric)/30 
+       else cast(substr(rating_servicio,1,1) as numeric)/30 end servicio_oleo,
+       case when char_length(rating_ambiente)>4 then 
+       cast(substr(rating_ambiente,1,2) as numeric)/30 
+       else cast(substr(rating_ambiente,1,1) as numeric)/30 end ambiente_oleo
+into rest_campos_v2
+from restaurantes_v5
