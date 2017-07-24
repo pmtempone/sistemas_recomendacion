@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Jul 16 20:38:17 2017
+Created on Sun Jul 23 16:59:49 2017
 
 @author: pablotempone
 """
 
-from surprise import SVD
+from surprise import SVDpp
 from surprise import Dataset
 from surprise import evaluate, print_perf
 from surprise import Reader
 import pandas as pd
 from surprise import GridSearch
-
+import numpy as np
 
 # path to dataset file
 file_path ='surprise_format.csv'
@@ -21,20 +21,18 @@ train = pd.read_csv("/Volumes/Disco_SD/Set de datos/guia_oleo/ratings_train.csv"
 bad_df = train[(train.rating_ambiente >3) | (train.rating_servicio >3) | (train.rating_servicio >3)].index
 train=train[~train.index.isin(bad_df)] #saco valores mayores a 3
 
-
+##busqueda de rating_ambiente
 train[['id_usuario','id_restaurante','rating_ambiente','fecha']].to_csv('surprise_format.csv',index= False)
 
 
-# As we're loading a custom dataset, we need to define a reader. In the
-# movielens-100k dataset, each line has the following format:
-# 'user item rating timestamp', separated by '\t' characters.
+file_path = 'surprise_format.csv'
 reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
 
 data = Dataset.load_from_file(file_path, reader=reader)
 data.split(n_folds=5)
 
-# We'll use the famous SVD algorithm.
-algo = SVD()
+# We'll use the famous SVD++ algorithm.
+algo = SVDpp()
 
 # Evaluate performances of our algorithm on the dataset.
 perf = evaluate(algo, data, measures=['RMSE', 'MAE'])
@@ -43,10 +41,12 @@ print_perf(perf)
 
 #grid search
 
-param_grid = {'n_epochs': [5, 10,50,100,200], 'lr_all': [0.002, 0.005,0.007,0.01],
-              'reg_all': [0.2,0.3,0.4, 0.6]}
+SVDpp_ambiente = SVDpp()
 
-grid_search = GridSearch(SVD, param_grid, measures=['RMSE', 'FCP'])
+param_grid = {'n_epochs': [50,100,150], 'lr_all': [0.002,0.003, 0.004],
+              'reg_all': [0.2,0.3],'n_factors':[10,20,30,40]}
+
+grid_search = GridSearch(SVDpp_ambiente, param_grid, measures=['RMSE', 'FCP'])
 
 grid_search.evaluate(data)
 
@@ -57,7 +57,7 @@ print(grid_search.best_params['RMSE'])
 results_df = pd.DataFrame.from_dict(grid_search.cv_results)
 print(results_df)
 
-results_df.to_csv('svd_grid_search.csv')
+results_df.to_csv('svdpp_grid_search.csv')
 
 #entrenar con todo y los mejores parametros
 algo = SVD(n_epochs = 100,lr_all=0.002,reg_all=0.2)

@@ -82,3 +82,15 @@ select id_restaurante, localidad, cocina, precio, latitud, longitud, fotos, prem
        else cast(substr(rating_ambiente,1,1) as numeric)/30 end ambiente_oleo
 into rest_campos_v2
 from restaurantes_v5
+
+
+---tabla final de training rf
+
+select a.*,b.edad,b.fecha_alta,b.genero,b.tipo, 
+	   c.localidad, cocina, precio, c.latitud, c.longitud, fotos, premios, "Ir en pareja", "Ir con amigos", "Comer con buenos tragos", "Llevar extranjeros", "Escuchar música", "Comer sin ser visto", "Comer al aire libre", "Comer solo", "Reunión de negocios", "Salida de amigas", "Comer bien gastando poco", "Ir con la familia", "Comer tarde", "Comer sano ", "Merendar", "Comer mucho", "Ir con chicos", "American Express", "Cabal", "Diners", "Electrón", "Maestro", "Mastercard", "Sólo Efectivo", "Tarjeta Naranja", "Visa",
+       telefono,comida_oleo,servicio_oleo,ambiente_oleo
+into train_completo_v2
+from
+ragtings_train_nomayor3 a,usuarios b,rest_campos_v2 c
+where a.id_usuario=b.id_usuario
+and cast(a.id_restaurante as text)=c.id_restaurante
