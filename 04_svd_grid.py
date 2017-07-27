@@ -304,3 +304,7 @@ test_entrega = pd.concat(objs=(test[['id_usuario','id_restaurante','fecha']],tes
 test_entrega.columns = ['id_usuario','id_restaurante','fecha','rating_ambiente','rating_comida','rating_servicio']
 
 test_entrega.to_csv('pablot-02-svd.csv',index=False)
+
+entrega = svd_pred_all(test)
+
+entrega.to_csv('pablot-02-svd.csv',index=False)
