@@ -285,13 +285,13 @@ def pred_rfr(test):
 
     test_entrega = pd.merge(test_entrega,train_means_rest,how = 'left',left_on = 'id_restaurante',right_on = 'id_restaurante')
 
-    test_entrega[['usuario_mean_ambiente']] = test_entrega[['usuario_mean_ambiente']].fillna(0)
-    test_entrega[['usuario_mean_comida']] = test_entrega[['usuario_mean_comida']].fillna(0)
-    test_entrega[['usuario_mean_servicio']] = test_entrega[['usuario_mean_servicio']].fillna(0)
+    test_entrega[['usuario_mean_ambiente']] = test_entrega[['usuario_mean_ambiente']].fillna(train.rating_ambiente.mean())
+    test_entrega[['usuario_mean_comida']] = test_entrega[['usuario_mean_comida']].fillna(train.rating_comida.mean())
+    test_entrega[['usuario_mean_servicio']] = test_entrega[['usuario_mean_servicio']].fillna(train.rating_servicio.mean())
     
-    test_entrega[['rest_mean_ambiente']] = test_entrega[['rest_mean_ambiente']].fillna(0)
-    test_entrega[['rest_mean_comida']] = test_entrega[['rest_mean_comida']].fillna(0)
-    test_entrega[['rest_mean_servicio']] = test_entrega[['rest_mean_servicio']].fillna(0)
+    test_entrega[['rest_mean_ambiente']] = test_entrega[['rest_mean_ambiente']].fillna(train.rating_ambiente.mean())
+    test_entrega[['rest_mean_comida']] = test_entrega[['rest_mean_comida']].fillna(train.rating_comida.mean())
+    test_entrega[['rest_mean_servicio']] = test_entrega[['rest_mean_servicio']].fillna(train.rating_servicio.mean())
     
     # Encoding the variable .fillna('0')
     test_final = test_entrega.apply(lambda x: d[x.name].fit_transform(x.fillna('0')))
@@ -302,24 +302,24 @@ def pred_rfr(test):
     rf_ambiente = joblib.load('rf_ambiente.pkl') 
     
     
-    pred_ambiente =  np.round(rf_ambiente.predict(test_final[cols]))
+    pred_ambiente =  rf_ambiente.predict(test_final[cols])
 
     
     ##COMIDA
     rf_comida = joblib.load('rf_comida.pkl') 
     
-    pred_comida =  np.round(rf_comida.predict(test_final[cols]))
+    pred_comida =  rf_comida.predict(test_final[cols])
 
         
     ##SERVICIO
     
     rf_servicio = joblib.load('rf_servicio.pkl') 
     
-    pred_servicio =  np.round(rf_servicio.predict(test_final[cols]))
+    pred_servicio =  rf_servicio.predict(test_final[cols])
 
-    test['rating_ambiente_pred'] = np.round(pred_ambiente)
-    test['rating_comida_pred'] = np.round(pred_comida)
-    test['rating_servicio_pred'] = np.round(pred_servicio)
+    test['rating_ambiente_pred'] = pred_ambiente
+    test['rating_comida_pred'] = pred_comida
+    test['rating_servicio_pred'] = pred_servicio
 
     test_entrega = test[['id_usuario','id_restaurante','fecha','rating_ambiente_pred','rating_comida_pred','rating_servicio_pred']]
     test_entrega.columns = ['id_usuario','id_restaurante','fecha','rating_ambiente','rating_comida','rating_servicio']
