@@ -36,14 +36,45 @@ train = pd.merge(train,train_means_rest,how = 'left',left_on = 'id_restaurante',
 
 train.to_sql('train_completo_v3',engine,index=False)
 
-cols = list(train.loc[:,'id_usuario':'fecha']) + list(train.loc[:,'fecha_alta':'rest_mean_servicio'])
+train[['fecha']] = pd.to_numeric(train.fecha.str.replace('-',''))
+
+train[['fecha_alta']] = pd.to_numeric(train.fecha_alta.str.replace('-',''))
+
+
+cols = ['fecha'] + list(train.loc[:,'fecha_alta':'rest_mean_servicio'])
+
+###columnas de restaurantes a numero####
+
+
+from sklearn import preprocessing
+from collections import defaultdict
+rest_dic = defaultdict(preprocessing.LabelEncoder)
+
+fit_rest = restaurantes[['localidad','cocina','premios']].apply(lambda x: d[x.name].fit(x.fillna('0')))
+
+fit_user = usuarios[['genero','tipo']].apply(lambda x: d[x.name].fit(x.fillna('0')))
+
+
+from sklearn.externals import joblib
+joblib.dump(fit_rest,'fit_rest.pkl') 
+
+joblib.dump(fit_user,'fit_user.pkl') 
+
+train[['localidad','cocina','premios']] = train[['localidad','cocina','premios']].apply(lambda x: fit_rest[x.name].transform(x.fillna('0')))
+    
+train[['genero','tipo']] = train[['genero','tipo']].apply(lambda x: fit_user[x.name].transform(x.fillna('0')))
+    
+
 
 x, y = train[cols], train.rating_ambiente
+
 
 from sklearn import preprocessing
 from collections import defaultdict
 d = defaultdict(preprocessing.LabelEncoder)
 
+x[['fecha']] = x[['fecha']].fillna(0)
+x[['fecha_alta']] = x[['fecha_alta']].fillna(0)
 x[['precio']] = x[['precio']].fillna(0)
 x[['fotos']] = x[['fotos']].fillna(0)
 x[['comida_oleo']] = x[['comida_oleo']].fillna(0)
@@ -52,14 +83,14 @@ x[['ambiente_oleo']] = x[['ambiente_oleo']].fillna(0)
 
 
 # Encoding the variable .fillna('0')
-fit = x.apply(lambda x: d[x.name].fit_transform(x.fillna('0')))
+fit = x.select_dtypes(include=['object']).apply(lambda x: d[x.name].fit_transform(x.fillna('0')))
 
-
+fit = pd.concat([x.select_dtypes(exclude=['object']),fit],axis=1)
 
 parameters = {'n_estimators':(10, 15,20,30)}
 rf_ambiente = RandomForestRegressor()
 clf = GridSearchCV(rf_ambiente, parameters,n_jobs=-1,cv=5)
-clf.fit(fit, y)
+clf.fit(x, y)
 
 sorted(clf.cv_results_.keys())
 
@@ -69,7 +100,7 @@ clf.best_score_
 
 # Estimate the score on the entire dataset, with no missing values
 estimator = RandomForestRegressor(random_state=0, n_estimators=100,n_jobs=-1)
-score = cross_val_score(estimator, fit, y,scoring='neg_mean_squared_error').mean()
+score = cross_val_score(estimator, x, y,scoring='neg_mean_squared_error').mean()
 print("Score with the entire dataset = %.2f" % score)
 
 from sklearn.metrics import mean_squared_error
@@ -85,7 +116,7 @@ rf_ambiente.fit(fit,y)
 
 from sklearn.model_selection import train_test_split
 
-train_df, test_df = train_test_split(pd.concat((fit,y),axis=1), test_size = 0.05)
+train_df, test_df = train_test_split(pd.concat((x,y),axis=1), test_size = 0.05)
 
 y = train_df.rating_ambiente
 x = train_df.drop('rating_ambiente',axis = 1)
@@ -118,7 +149,7 @@ print('Variance score: %.2f' % rf_ambiente.score(x_test, y_test))
 
 y = train.rating_ambiente
 
-rf_ambiente.fit(fit,y)
+rf_ambiente.fit(x,y)
 from sklearn.externals import joblib
 joblib.dump(rf_ambiente,'rf_ambiente.pkl') 
 
@@ -130,15 +161,6 @@ from sklearn.model_selection import train_test_split
 
 x, y = train[cols], train.rating_comida
 
-from sklearn import preprocessing
-from collections import defaultdict
-d = defaultdict(preprocessing.LabelEncoder)
-
-x[['precio']] = x[['precio']].fillna(0)
-x[['fotos']] = x[['fotos']].fillna(0)
-x[['comida_oleo']] = x[['comida_oleo']].fillna(0)
-x[['servicio_oleo']] = x[['servicio_oleo']].fillna(0)
-x[['ambiente_oleo']] = x[['ambiente_oleo']].fillna(0)
 
 
 # Encoding the variable .fillna('0')
@@ -175,7 +197,7 @@ print('Variance score: %.2f' % rf_comida.score(x_test, y_test))
 
 y = train.rating_comida
 
-rf_comida.fit(fit,y)
+rf_comida.fit(x,y)
 from sklearn.externals import joblib
 joblib.dump(rf_comida,'rf_comida.pkl') 
 
@@ -231,7 +253,7 @@ print('Variance score: %.2f' % rf_servicio.score(x_test, y_test))
 
 y = train.rating_servicio
 
-rf_servicio.fit(fit,y)
+rf_servicio.fit(x,y)
 from sklearn.externals import joblib
 joblib.dump(rf_servicio,'rf_servicio.pkl') 
 
@@ -265,8 +287,8 @@ def pred_rfr(test):
     #preprocesamiento de test
     from sklearn import preprocessing
     from collections import defaultdict
-    d = defaultdict(preprocessing.LabelEncoder)
-
+    from sklearn.externals import joblib
+    
     test_entrega[['precio']] = test_entrega[['precio']].fillna(0)
     test_entrega[['fotos']] = test_entrega[['fotos']].fillna(0)
     test_entrega[['comida_oleo']] = test_entrega[['comida_oleo']].fillna(0)
@@ -293,29 +315,40 @@ def pred_rfr(test):
     test_entrega[['rest_mean_comida']] = test_entrega[['rest_mean_comida']].fillna(train.rating_comida.mean())
     test_entrega[['rest_mean_servicio']] = test_entrega[['rest_mean_servicio']].fillna(train.rating_servicio.mean())
     
+    test_entrega[['fecha']] = pd.to_numeric(test_entrega.fecha.str.replace('-',''))
+
+    test_entrega[['fecha_alta']] = pd.to_numeric(test_entrega.fecha_alta.str.replace('-',''))
+
+    test_entrega[['fecha']] = test_entrega[['fecha']].fillna(0)
+    test_entrega[['fecha_alta']] = test_entrega[['fecha_alta']].fillna(0)
+    cols = ['fecha'] + list(test_entrega.loc[:,'fecha_alta':'rest_mean_servicio'])
+
+    test_entrega = test_entrega[cols]
     # Encoding the variable .fillna('0')
-    test_final = test_entrega.apply(lambda x: d[x.name].fit_transform(x.fillna('0')))
-
-    cols = list(test_final.loc[:,'id_usuario':'fecha']) + list(test_final.loc[:,'fecha_alta':'rest_mean_servicio'])
-
+    fit_rest = joblib.load('fit_rest.pkl') 
+    test_entrega[['localidad','cocina','premios']] = test_entrega[['localidad','cocina','premios']].apply(lambda x: fit_rest[x.name].transform(x.fillna('0')))
+    
+    fit_user = joblib.load('fit_user.pkl') 
+    test_entrega[['genero','tipo']] = test_entrega[['genero','tipo']].apply(lambda x: fit_user[x.name].transform(x.fillna('0')))
+    
     
     rf_ambiente = joblib.load('rf_ambiente.pkl') 
     
     
-    pred_ambiente =  rf_ambiente.predict(test_final[cols])
+    pred_ambiente =  rf_ambiente.predict(test_entrega[cols])
 
     
     ##COMIDA
     rf_comida = joblib.load('rf_comida.pkl') 
     
-    pred_comida =  rf_comida.predict(test_final[cols])
+    pred_comida =  rf_comida.predict(test_entrega[cols])
 
         
     ##SERVICIO
     
     rf_servicio = joblib.load('rf_servicio.pkl') 
     
-    pred_servicio =  rf_servicio.predict(test_final[cols])
+    pred_servicio =  rf_servicio.predict(test_entrega[cols])
 
     test['rating_ambiente_pred'] = pred_ambiente
     test['rating_comida_pred'] = pred_comida
@@ -328,4 +361,4 @@ def pred_rfr(test):
 
 entrega = pred_rfr(test)
 
-entrega.to_csv('pablot-03-rfr.csv',index=False)
+entrega.to_csv('pablot-06-rfr.csv',index=False)
