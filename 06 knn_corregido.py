@@ -21,7 +21,7 @@ import numpy as np
 from sqlalchemy import create_engine
 engine = create_engine('postgresql://postgres:pass@localhost:5432/sistemas_recomendacion')
 
-train_reducido = pd.read_sql_query('select * from ratings_train_reducido_nomayor3',con=engine)
+train_reducido = pd.read_sql_query('select * from ratings_train_reducido',con=engine)
 
 ####ambiente knn######
 
