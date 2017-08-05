@@ -98,3 +98,14 @@ from
 ragtings_train a,usuarios b,rest_campos_v2 c
 where a.id_usuario=b.id_usuario
 and cast(a.id_restaurante as text)=c.id_restaurante
+
+
+--reduzco para knn
+
+select * 
+into ratings_train_reducido
+from ratings_train
+where id_usuario in (select id_usuario from (select id_usuario,count(id_usuario)
+from ratings_train
+group by id_usuario
+having count(id_usuario)>4) a)
