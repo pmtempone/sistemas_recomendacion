@@ -1,0 +1,269 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Aug  3 19:26:57 2017
+
+@author: pablotempone
+"""
+
+#######xgboost##########
+########################
+
+import xgboost as xgb
+import numpy as np
+import pandas as pd
+
+# read in data
+
+perfil_usuario = pd.read_csv("/Volumes/Disco_SD/Set de datos/guia_oleo/perfil_usuario.csv",sep = ',',encoding = "ISO-8859-1")
+perfil_rest = pd.read_csv("/Volumes/Disco_SD/Set de datos/guia_oleo/perfil_restaurante.csv",sep = ',',encoding = "ISO-8859-1")
+
+
+train_new.to_sql('test_entrega',engine,index=False)
+    
+test_entrega = pd.read_sql_query('select a.*,b.edad,b.fecha_alta,b.genero,b.tipo, c.localidad, cocina, precio, c.latitud, c.longitud, fotos, premios, "Ir en pareja", "Ir con amigos", "Comer con buenos tragos", "Llevar extranjeros", "Escuchar música", "Comer sin ser visto", "Comer al aire libre", "Comer solo", "Reunión de negocios", "Salida de amigas", "Comer bien gastando poco", "Ir con la familia", "Comer tarde", "Comer sano ", "Merendar", "Comer mucho", "Ir con chicos", "American Express", "Cabal", "Diners", "Electrón", "Maestro", "Mastercard", "Tarjeta Naranja", "Visa",telefono,comida_oleo,servicio_oleo,ambiente_oleo from test_entrega a left join usuarios b on ( a.id_usuario=b.id_usuario) left join rest_campos_v3 c  on (cast(a.id_restaurante as text)=c.id_restaurante)',engine)
+#preprocesamiento de test
+from sklearn import preprocessing
+from collections import defaultdict
+from sklearn.externals import joblib
+
+
+test_entrega[['precio']] = test_entrega[['precio']].fillna(0)
+test_entrega[['fotos']] = test_entrega[['fotos']].fillna(0)
+test_entrega[['comida_oleo']] = test_entrega[['comida_oleo']].fillna(0)
+test_entrega[['servicio_oleo']] = test_entrega[['servicio_oleo']].fillna(0)
+test_entrega[['ambiente_oleo']] = test_entrega[['ambiente_oleo']].fillna(0)
+
+train_means = train[['id_usuario','rating_ambiente','rating_comida','rating_servicio']].groupby('id_usuario',as_index=False).mean()
+train_means.columns = ['id_usuario','usuario_mean_ambiente','usuario_mean_comida','usuario_mean_servicio']
+
+train_means_rest = train[['id_restaurante','rating_ambiente','rating_comida','rating_servicio']].groupby('id_restaurante',as_index=False).mean()
+train_means_rest.columns = ['id_restaurante','rest_mean_ambiente','rest_mean_comida','rest_mean_servicio']
+
+
+
+test_entrega = pd.merge(test_entrega,train_means,how = 'left',left_on = 'id_usuario',right_on = 'id_usuario')
+
+test_entrega = pd.merge(test_entrega,train_means_rest,how = 'left',left_on = 'id_restaurante',right_on = 'id_restaurante')
+
+
+train[['fecha']] = pd.to_numeric(train.fecha.str.replace('-',''))
+
+train[['fecha_alta']] = pd.to_numeric(train.fecha_alta.str.replace('-',''))
+
+train[['fecha']] = train[['fecha']].fillna(0)
+train[['fecha_alta']] = train[['fecha_alta']].fillna(0)
+
+
+test_entrega[['fecha']] = pd.to_numeric(test_entrega.fecha.str.replace('-',''))
+
+test_entrega[['fecha_alta']] = pd.to_numeric(test_entrega.fecha_alta.str.replace('-',''))
+
+test_entrega[['fecha']] = test_entrega[['fecha']].fillna(0)
+test_entrega[['fecha_alta']] = test_entrega[['fecha_alta']].fillna(0)
+
+
+
+cols = ['fecha'] + list(test_entrega.loc[:,'fecha_alta':'rest_mean_servicio'])
+
+train = train[cols]
+
+
+# Encoding the variable .fillna('0')
+fit_rest = joblib.load('fit_rest.pkl') 
+test_entrega[['localidad','cocina','premios']] = test_entrega[['localidad','cocina','premios']].apply(lambda x: fit_rest[x.name].transform(x.fillna('0')))
+train[['localidad','cocina','premios']] = train[['localidad','cocina','premios']].apply(lambda x: fit_rest[x.name].transform(x.fillna('0')))
+
+fit_user = joblib.load('fit_user.pkl') 
+test_entrega[['genero','tipo']] = test_entrega[['genero','tipo']].apply(lambda x: fit_user[x.name].transform(x.fillna('0')))
+train[['genero','tipo']] = train[['genero','tipo']].apply(lambda x: fit_user[x.name].transform(x.fillna('0')))
+
+test_entrega = test_entrega[cols]
+
+test_entrega = test_entrega.drop(['rating_ambiente','rating_comida','rating_servicio','edad'],axis=1)
+
+target = train_y['rating_ambiente'].astype(float)
+
+train = train.drop(['precio'],axis=1)
+test_entrega = test_entrega.drop(['precio'],axis=1)
+
+
+import time
+from matplotlib import pyplot
+from xgboost.sklearn import XGBClassifier
+from sklearn import cross_validation, metrics   #Additional scklearn functions
+from sklearn.grid_search import GridSearchCV   #Perforing grid search
+
+# load data
+# evaluate the effect of the number of threads
+results = []
+num_threads = [1, 2, 3, 4]
+for n in num_threads:
+	start = time.time()
+	xg_model = XGBClassifier(nthread=n)
+	xg_model.fit(train.values, target.values)
+	elapsed = time.time() - start
+	print(n, elapsed)
+	results.append(elapsed)
+# plot results
+pyplot.plot(num_threads, results)
+pyplot.ylabel('Speed (seconds)')
+pyplot.xlabel('Number of Threads')
+pyplot.title('XGBoost Training Speed vs Number of Threads')
+pyplot.show()
+
+#Choose all predictors except target & IDcols
+predictors = [x for x in train.columns if x not in [target, IDcol]]
+
+
+perfil_usuario = perfil_usuario.drop_duplicates(subset='id_usuario', keep='last', inplace=False)
+perfil_rest = perfil_rest.drop_duplicates(subset='id_restaurante', keep='last', inplace=False)
+
+
+train_x = pd.merge(train,perfil_usuario,how='left',left_on='id_usuario',right_on='id_usuario')
+train_x = pd.merge(train_x,perfil_rest,how='left',left_on='id_restaurante',right_on='id_restaurante')
+train_x = train_x.loc[:,'rating_ambiente_ratings_x':'cocina_venezolana_y']
+
+
+vnround = 1500	
+vmax_depth = 6
+vmin_child_weight = 5
+xgb1 = XGBClassifier(
+            eta = 0.01, 
+             subsample = 0.7, 
+             colsample_bytree = 0.4, 
+             min_child_weight = vmin_child_weight, 
+             max_depth = vmax_depth,
+             reg_alpha = 0, 
+             reg_lambda = 0.1, 
+             gamma = 0.01,
+             nround= vnround,
+             n_jobs=4, 
+             # nthread = 16,
+             eval_metric = "rmse",
+             # num_class = 2,
+             objective="reg:linear",
+ seed=27)
+
+
+
+xgb1.fit(train_x.values, target.values)
+
+preds = xgb1.predict(test_entrega.values)
+
+test_entrega = pd.merge(train_new,perfil_usuario,how='left',left_on='id_usuario',right_on='id_usuario')
+test_entrega = pd.merge(test_entrega,perfil_rest,how='left',left_on='id_restaurante',right_on='id_restaurante')
+test_entrega = test_entrega.loc[:,'rating_ambiente_ratings_x':'cocina_venezolana_y']
+
+
+xgtrain = xgb.DMatrix(train_x.values, train.rating_ambiente)
+xgtest = xgb.DMatrix(test_entrega.values)
+
+# specify parameters via map
+param = {'max_depth':10, 'eta':0.1, 'subsample':0.7, 'objective':'reg:linear','eval_metric' : "rmse",
+             'colsample_bytree' : 0.4, 
+             'min_child_weight' : 5, 
+             'reg_alpha' : 0, 
+             'reg_lambda' : 0.1, 
+             'gamma' : 0.01,
+             'nround' : vnround,
+             'n_jobs' : 4,
+             'ntrheads':4}
+
+bst = xgb.train(param, xgtrain, vnround)
+# make prediction
+preds = bst.predict(xgtest)
+
+preds = np.where(preds>3,3,np.where(preds<0,0,preds))
+
+from sklearn.externals import joblib
+joblib.dump(bst,'xgboost_ambiente.pkl') 
+
+# specify parameters via map
+param = {'max_depth':6, 'eta':1, 'silent':1, 'objective':'binary:logistic' }
+num_round = 2
+bst = xgb.train(param, dtrain, num_round)
+
+
+
+# The mean squared error
+print("Mean squared error: %.2f"
+      % np.mean((preds - train_new.rating_ambiente) ** 2)) #0.94
+
+####comida###
+
+train_means = train[['id_usuario','rating_ambiente','rating_comida','rating_servicio']].groupby('id_usuario',as_index=False).mean()
+train_means.columns = ['id_usuario','usuario_mean_ambiente','usuario_mean_comida','usuario_mean_servicio']
+
+train_means_rest = train[['id_restaurante','rating_ambiente','rating_comida','rating_servicio']].groupby('id_restaurante',as_index=False).mean()
+train_means_rest.columns = ['id_restaurante','rest_mean_ambiente','rest_mean_comida','rest_mean_servicio']
+
+
+train = pd.merge(train,train_means,how = 'left',left_on = 'id_usuario',right_on = 'id_usuario')
+
+train = pd.merge(train,train_means_rest,how = 'left',left_on = 'id_restaurante',right_on = 'id_restaurante')
+
+
+train_x = pd.merge(train,perfil_usuario,how='left',left_on='id_usuario',right_on='id_usuario')
+train_x = pd.merge(train_x,perfil_rest,how='left',left_on='id_restaurante',right_on='id_restaurante')
+train_x = train_x.loc[:,'usuario_mean_ambiente':'cocina_venezolana_y']
+
+test_entrega = pd.merge(train_new,train_means,how = 'left',left_on = 'id_usuario',right_on = 'id_usuario')
+
+test_entrega = pd.merge(test_entrega,train_means_rest,how = 'left',left_on = 'id_restaurante',right_on = 'id_restaurante')
+
+test_entrega = pd.merge(test_entrega,perfil_usuario,how='left',left_on='id_usuario',right_on='id_usuario')
+test_entrega = pd.merge(test_entrega,perfil_rest,how='left',left_on='id_restaurante',right_on='id_restaurante')
+
+test_entrega = test_entrega.loc[:,'usuario_mean_ambiente':'cocina_venezolana_y']
+
+
+
+xgtrain = xgb.DMatrix(train_x.values, train.rating_comida)
+xgtest = xgb.DMatrix(test_entrega.values)
+
+xg_comida = xgb.train(param, xgtrain, vnround)
+# make prediction
+preds_comida = xg_comida.predict(xgtest)
+
+preds_comida = np.where(preds_comida>3,3,np.where(preds_comida<0,0,preds))
+
+# The mean squared error
+print("Mean squared error: %.2f"
+      % np.mean((preds_comida - train_new.rating_comida) ** 2)) #1.25
+      
+mean_comida = train[train['fecha']>='2012-01-01'].rating_comida.mean()
+
+# The mean squared error
+print("Mean squared error: %.2f"
+      % np.mean((1.7 - train_new.rating_comida) ** 2)) #1.25
+
+####servicio###
+
+
+xgtrain = xgb.DMatrix(train_x.values, train.rating_servicio)
+xgtest = xgb.DMatrix(test_entrega.values)
+
+xg_servicio = xgb.train(param, xgtrain, vnround)
+# make prediction
+preds_servicio = xg_servicio.predict(xgtest)
+
+preds_servicio = np.where(preds_servicio>3,3,np.where(preds_servicio<0,0,preds))
+
+# The mean squared error
+print("Mean squared error: %.2f"
+      % np.mean((preds_servicio - train_new.rating_servicio) ** 2)) #1.25
+      
+      
+import seaborn as sns
+sns.set(font_scale = 1.5)
+xgb.plot_importance(xg_servicio)
+
+importances = xg_servicio.get_fscore()
+
+importance_frame = pd.DataFrame({'Importance': list(importances.values()), 'Feature': list(importances.keys())})
+importance_frame.sort_values(by = 'Importance', inplace = True)
+
+#ver variables mas importantes y reducirlas
+#importance_frame.plot(kind = 'barh', x = 'Feature', figsize = (8,8), color = 'orange')
+

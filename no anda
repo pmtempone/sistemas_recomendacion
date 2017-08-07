@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Aug  2 20:29:51 2017
+
+@author: pablotempone
+"""
+
+#entrega final
+
+from surprise import SVD
+from surprise import Dataset
+from surprise import evaluate, print_perf
+from surprise import Reader
+import pandas as pd
+from surprise import GridSearch
+import numpy as np
+
+train = pd.read_csv("/Volumes/Disco_SD/Set de datos/guia_oleo/ratings_train.csv",sep = ',',encoding = "ISO-8859-1")
+test = pd.read_csv("/Volumes/Disco_SD/Set de datos/guia_oleo/ratings_test.csv",sep = ',',encoding = "ISO-8859-1")
+train_new = pd.read_csv("/Volumes/Disco_SD/Set de datos/guia_oleo/ratings_train_01_a_05.csv",sep = ',',encoding = "ISO-8859-1")
+
+train_m = pd.concat([train,train_new],axis=0)
+
+
+
+train_m['rating_comida'] = np.where(train_m['rating_comida']>3,3,train_m['rating_comida'])
+train_m['rating_ambiente'] = np.where(train_m['rating_ambiente']>3,3,train_m['rating_ambiente'])
+train_m['rating_servicio'] = np.where(train_m['rating_servicio']>3,3,train_m['rating_servicio'])
+
+train_new['rating_comida'] = np.where(train_new['rating_comida']>3,3,train_new['rating_comida'])
+train_new['rating_ambiente'] = np.where(train_new['rating_ambiente']>3,3,train_new['rating_ambiente'])
+train_new['rating_servicio'] = np.where(train_new['rating_servicio']>3,3,train_new['rating_servicio'])
+
+
+train['rating_comida'] = np.where(train['rating_comida']>3,3,train['rating_comida'])
+train['rating_ambiente'] = np.where(train['rating_ambiente']>3,3,train['rating_ambiente'])
+train['rating_servicio'] = np.where(train['rating_servicio']>3,3,train['rating_servicio'])
+
+train_f = train[train['fecha']>'2014-01-01']
+
+#entreno modelo ambiente
+
+train_f[['id_usuario','id_restaurante','rating_ambiente','fecha']].to_csv('surprise_format_ambiente_final.csv',index= False)
+
+file_path ='surprise_format_ambiente_final.csv'
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+
+svd_ambiente = SVD(n_epochs=100, lr_all=0.002, reg_all= 0.2)
+
+
+# Retrieve the trainset.
+trainset = data.build_full_trainset()
+
+svd_ambiente.train(trainset)
+
+
+from sklearn.externals import joblib
+joblib.dump(svd_ambiente,'svd_ambiente_final.pkl') 
+    
+#entreno modelo comida
+
+train_f[['id_usuario','id_restaurante','rating_comida','fecha']].to_csv('surprise_comida_final.csv',index= False)
+
+file_path ='surprise_comida_final.csv'
+
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+
+svd_comida = SVD(n_epochs=100, lr_all=0.002, reg_all= 0.2)
+
+
+# Retrieve the trainset.
+trainset = data.build_full_trainset()
+
+svd_comida.train(trainset)
+
+
+from sklearn.externals import joblib
+joblib.dump(svd_comida,'svd_comida_final.pkl') 
+
+
+#entreno modelo servicio
+
+train_f[['id_usuario','id_restaurante','rating_servicio','fecha']].to_csv('surprise_servicio_final.csv',index= False)
+
+file_path ='surprise_servicio_final.csv'
+
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+
+svd_servicio = SVD(n_epochs=100, lr_all=0.002, reg_all= 0.2)
+
+
+# Retrieve the trainset.
+trainset = data.build_full_trainset()
+
+svd_servicio.train(trainset)
+
+
+from sklearn.externals import joblib
+joblib.dump(svd_servicio,'svd_servicio_final.pkl')
+
+
+def svd_pred_all(test):
+    ##AMBIENETE
+    svd_ambiente = joblib.load('svd_ambiente_final.pkl') 
+    test_ambiente = pd.DataFrame()
+    
+    for i in range(0,len(test.index)):
+        variable = pd.DataFrame(pd.Series(svd_ambiente.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+        test_ambiente = test_ambiente.append(variable, ignore_index = True) 
+    
+    ##COMIDA
+    svd_comida = joblib.load('svd_comida_final.pkl') 
+
+    test_comida = pd.DataFrame()
+
+    for i in range(0,len(test.index)):
+        variable = pd.DataFrame(pd.Series(svd_comida.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+        test_comida = test_comida.append(variable, ignore_index = True) 
+        
+    ##SERVICIO
+    
+    svd_servicio = joblib.load('svd_servicio_final.pkl') 
+
+    test_servicio = pd.DataFrame()
+    
+    
+    for i in range(0,len(test.index)):
+        variable = pd.DataFrame(pd.Series(svd_servicio.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+        test_servicio = test_servicio.append(variable, ignore_index = True) 
+
+    test_entrega = pd.concat(objs=(test[['id_usuario','id_restaurante','fecha']],test_ambiente,test_comida,test_servicio), axis=1,ignore_index=0)
+    test_entrega.columns = ['id_usuario','id_restaurante','fecha','rating_ambiente','rating_comida','rating_servicio']
+    return test_entrega
+
+entrega = svd_pred_all(train_new)
+
+entrega['rating_comida'] = np.where(entrega['rating_comida']>3,3,entrega['rating_comida'])
+entrega['rating_ambiente'] = np.where(entrega['rating_ambiente']>3,3,entrega['rating_ambiente'])
+entrega['rating_servicio'] = np.where(entrega['rating_servicio']>3,3,entrega['rating_servicio'])
+
+print("Mean squared error: %.2f"
+      % np.mean((entrega.rating_ambiente - train_new.rating_ambiente) ** 2))
+
+print("Mean squared error: %.2f"
+      % np.mean((entrega.rating_comida - train_new.rating_comida) ** 2))
+
+print("Mean squared error: %.2f"
+      % np.mean((entrega.rating_servicio - train_new.rating_servicio) ** 2))
+
+
+entrega.to_csv('pablot_16-thefinal.csv',index=False)

@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jul 31 19:04:29 2017
+
+@author: pablotempone
+"""
+
+from surprise import Dataset
+from surprise import evaluate, print_perf
+from surprise import Reader
+import pandas as pd
+from surprise import GridSearch
+from surprise import KNNBaseline
+import numpy as np
+
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file('knn_ambiente.csv', reader=reader)
+data.split(n_folds=5)
+
+sim_options = {'name': 'cosine',
+               'user_based': True  # compute  similarities between items
+               }
+               
+knnbaseline_ambiente = KNNBaseline()
+
+k_neig = np.array([180,250,300])
+
+
+for i in range(0,len(k_neig)):
+    knnbaseline_ambiente = KNNBaseline(k=k_neig[i])
+    perf = evaluate(knnbaseline_ambiente, data, measures=['RMSE', 'MAE'],verbose=0)
+    print('K es ',k_neig[i],'media',np.array(perf['rmse']).mean())
+    
+#mejor k de ambiente es 300
+
+knnbaseline_ambiente = KNNBaseline(k=300)
+# Retrieve the trainset.
+trainset = data.build_full_trainset()
+
+knnbaseline_ambiente.train(trainset)
+
+from sklearn.externals import joblib
+joblib.dump(knnbaseline_ambiente,'knnbaseline_ambiente.pkl') 
+
+
+####comida knn######
+
+train_reducido[['id_usuario','id_restaurante','rating_comida','fecha']].to_csv('knn_comida.csv',index= False)
+
+file_path ='knn_comida.csv'
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+data.split(n_folds=5)
+
+k_neig = np.array([180,250,300])
+
+for i in range(0,len(k_neig)):
+    knnbaseline_comida = KNNBaseline(k=k_neig[i])
+    perf = evaluate(knnbaseline_comida, data, measures=['RMSE', 'MAE'],verbose=0)
+    print('K es ',k_neig[i],'media',np.array(perf['rmse']).mean())
+
+#mejor k de ambiente es 40
+
+knnbaseline_comida = KNNBaseline(k=300)
+# Retrieve the trainset.
+trainset = data.build_full_trainset()
+
+knnbaseline_comida.train(trainset)
+
+from sklearn.externals import joblib
+joblib.dump(knnbaseline_comida,'knnbaseline_comida.pkl') 
+
+####servicio knn######
+
+train_reducido[['id_usuario','id_restaurante','rating_servicio','fecha']].to_csv('knn_servicio.csv',index= False)
+
+file_path ='knn_servicio.csv'
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+data.split(n_folds=5)
+
+k_neig = np.array([18,250,300])
+
+for i in range(0,len(k_neig)):
+    knnbaseline_servicio = KNNBaseline(k=k_neig[i])
+    perf = evaluate(knnbaseline_servicio, data, measures=['RMSE', 'MAE'],verbose=0)
+    print('K es ',k_neig[i],'media',np.array(perf['rmse']).mean())
+
+#mejor k de ambiente es 60
+
+knnbaseline_servicio = KNNBaseline(k=300)
+# Retrieve the trainset.
+trainset = data.build_full_trainset()
+
+knnbaseline_servicio.train(trainset)
+
+from sklearn.externals import joblib
+joblib.dump(knnbaseline_servicio,'knnbaseline_servicio.pkl') 
+
+
+
+
+def pred_knnbaseline(test):
+    ##AMBIENETE
+    knnbaseline_ambiente = joblib.load('knnbaseline_ambiente.pkl') 
+    test_ambiente = pd.DataFrame()
+    
+    for i in range(0,len(test.index)):
+        variable = pd.DataFrame(pd.Series(knnbaseline_ambiente.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+        test_ambiente = test_ambiente.append(variable, ignore_index = True) 
+    
+    ##COMIDA
+    knnbaseline_comida = joblib.load('knnbaseline_comida.pkl') 
+
+    test_comida = pd.DataFrame()
+
+    for i in range(0,len(test.index)):
+        variable = pd.DataFrame(pd.Series(knnbaseline_comida.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+        test_comida = test_comida.append(variable, ignore_index = True) 
+        
+    ##SERVICIO
+    
+    knnbaseline_servicio = joblib.load('knnbaseline_servicio.pkl') 
+
+    test_servicio = pd.DataFrame()
+    
+    
+    for i in range(0,len(test.index)):
+        variable = pd.DataFrame(pd.Series(knnbaseline_servicio.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+        test_servicio = test_servicio.append(variable, ignore_index = True) 
+
+    test_entrega = pd.concat(objs=(test[['id_usuario','id_restaurante','fecha']],test_ambiente,test_comida,test_servicio), axis=1,ignore_index=0)
+    test_entrega.columns = ['id_usuario','id_restaurante','fecha','rating_ambiente','rating_comida','rating_servicio']
+    return test_entrega
+
+
+entrega = pred_knnbaseline(test)
+
+entrega['rating_comida'] = np.where(entrega['rating_comida']>3,3,entrega['rating_comida'])
+entrega['rating_ambiente'] = np.where(entrega['rating_ambiente']>3,3,entrega['rating_ambiente'])
+entrega['rating_servicio'] = np.where(entrega['rating_servicio']>3,3,entrega['rating_servicio'])
+
+
+
+entrega.to_csv('pablot_11-knnbase.csv',index=False)

@@ -1,0 +1,316 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jul 31 19:56:25 2017
+
+@author: pablotempone
+"""
+
+from surprise import SVD
+from surprise import Dataset
+from surprise import evaluate, print_perf
+from surprise import Reader
+import pandas as pd
+from surprise import GridSearch
+
+
+# path to dataset file
+file_path ='knn_ambiente.csv'
+
+train = pd.read_csv("/Volumes/Disco_SD/Set de datos/guia_oleo/ratings_train.csv",sep = ',',encoding = "ISO-8859-1")
+bad_df = train[(train.rating_ambiente >3) | (train.rating_servicio >3) | (train.rating_servicio >3)].index
+train=train[~train.index.isin(bad_df)] #saco valores mayores a 3
+
+
+train[['id_usuario','id_restaurante','rating_ambiente','fecha']].to_csv('surprise_format.csv',index= False)
+
+
+# As we're loading a custom dataset, we need to define a reader. In the
+# movielens-100k dataset, each line has the following format:
+# 'user item rating timestamp', separated by '\t' characters.
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+data.split(n_folds=5)
+
+# We'll use the famous SVD algorithm.
+algo = SVD()
+
+# Evaluate performances of our algorithm on the dataset.
+perf = evaluate(algo, data, measures=['RMSE', 'MAE'])
+
+print_perf(perf)
+
+#grid search
+
+param_grid = {'n_epochs': [100,200,300,400], 'lr_all': [0.002],
+              'reg_all': [0.1]}
+
+grid_search = GridSearch(SVD, param_grid, measures=['RMSE', 'FCP'])
+
+grid_search.evaluate(data)
+
+print(grid_search.best_score['RMSE'])
+
+print(grid_search.best_params['RMSE'])
+
+results_df = pd.DataFrame.from_dict(grid_search.cv_results)
+print(results_df)
+
+results_df.to_csv('svd_grid_search.csv')
+
+#entrenar con todo y los mejores parametros
+algo = SVD(n_epochs = 100,lr_all=0.002,reg_all=0.1)
+trainset= data.build_full_trainset()
+algo.train(trainset)
+
+#predict con test
+
+test_ambiente = pd.DataFrame()
+
+
+
+for i in range(0,len(test.index)):
+    variable = pd.DataFrame(pd.Series(algo.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+    test_ambiente = test_ambiente.append(variable, ignore_index = True)
+
+## busqueda de rating_comida
+
+train[['id_usuario','id_restaurante','rating_comida','fecha']].to_csv('surprise_comida.csv',index= False)
+
+file_path ='surprise_comida.csv'
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+data.split(n_folds=40)
+
+# We'll use the famous SVD algorithm.
+algo_comida = SVD()
+
+# Evaluate performances of our algorithm on the dataset.
+perf = evaluate(algo_comida, data, measures=['RMSE', 'MAE'])
+
+print_perf(perf)
+
+#grid search
+
+param_grid = {'n_epochs': [5, 10,50,100], 'lr_all': [0.002, 0.005],
+              'reg_all': [0.2,0.3,0.4]}
+
+grid_search = GridSearch(SVD, param_grid, measures=['RMSE', 'FCP'])
+
+grid_search.evaluate(data)
+
+print(grid_search.best_score['RMSE'])
+
+print(grid_search.best_params['RMSE'])
+
+results_df = pd.DataFrame.from_dict(grid_search.cv_results)
+print(results_df)
+
+results_df.to_csv('svd_grid_search_comida.csv')
+
+### busqueda de rating_servicio
+
+train[['id_usuario','id_restaurante','rating_servicio','fecha']].to_csv('surprise_servicio.csv',index= False)
+
+file_path ='surprise_servicio.csv'
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+data.split(n_folds=5)
+
+# We'll use the famous SVD algorithm.
+algo_comida = SVD()
+
+# Evaluate performances of our algorithm on the dataset.
+perf = evaluate(algo_comida, data, measures=['RMSE', 'MAE'])
+
+print_perf(perf)
+
+#grid search
+
+param_grid = {'n_epochs': [5, 10,50,100], 'lr_all': [0.002, 0.005],
+              'reg_all': [0.2,0.3]}
+
+grid_search = GridSearch(SVD, param_grid, measures=['RMSE', 'FCP'])
+
+grid_search.evaluate(data)
+
+print(grid_search.best_score['RMSE'])
+
+print(grid_search.best_params['RMSE'])
+
+results_df = pd.DataFrame.from_dict(grid_search.cv_results)
+print(results_df)
+
+results_df.to_csv('svd_grid_search_ambiente.csv')
+
+######modelo para la clase listo########
+########################################
+
+from surprise import SVD
+from surprise import Dataset
+from surprise import evaluate, print_perf
+from surprise import Reader
+import pandas as pd
+
+
+def svd_pred_all_V2(test):
+    ##AMBIENETE
+    from sklearn.externals import joblib
+
+    svd_ambiente = joblib.load('svd_ambiente_V2.pkl') 
+    test_ambiente = pd.DataFrame()
+    
+    for i in range(0,len(test.index)):
+        variable = pd.DataFrame(pd.Series(svd_ambiente.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+        test_ambiente = test_ambiente.append(variable, ignore_index = True) 
+    
+    ##COMIDA
+    svd_comida = joblib.load('svd_comida_V2.pkl') 
+
+    test_comida = pd.DataFrame()
+
+    for i in range(0,len(test.index)):
+        variable = pd.DataFrame(pd.Series(svd_comida.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+        test_comida = test_comida.append(variable, ignore_index = True) 
+        
+    ##SERVICIO
+    
+    svd_servicio = joblib.load('svd_servicio_V2.pkl') 
+
+    test_servicio = pd.DataFrame()
+    
+    
+    for i in range(0,len(test.index)):
+        variable = pd.DataFrame(pd.Series(svd_servicio.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+        test_servicio = test_servicio.append(variable, ignore_index = True) 
+
+    test_entrega = pd.concat(objs=(test[['id_usuario','id_restaurante','fecha']],test_ambiente,test_comida,test_servicio), axis=1,ignore_index=0)
+    test_entrega.columns = ['id_usuario','id_restaurante','fecha','rating_ambiente','rating_comida','rating_servicio']
+    return test_entrega
+
+#entreno modelo ambiente
+
+
+file_path ='knn_ambiente.csv'
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+data.split(n_folds=5)
+svd_ambiente = SVD(n_epochs=100, lr_all=0.002, reg_all= 0.1)
+
+# Evaluate performances of our algorithm on the dataset.
+perf = evaluate(svd_ambiente, data, measures=['RMSE', 'MAE'])
+
+print_perf(perf)
+
+
+# Retrieve the trainset.
+trainset = data.build_full_trainset()
+
+svd_ambiente.train(trainset)
+
+
+from sklearn.externals import joblib
+joblib.dump(svd_ambiente,'svd_ambiente_V2.pkl') 
+
+#con esto se carga
+
+svd_ambiente = joblib.load('svd_ambiente.pkl') 
+
+test = pd.read_csv("/Volumes/Disco_SD/Set de datos/guia_oleo/ratings_test.csv",sep = ',',encoding = "ISO-8859-1")
+
+test_ambiente = pd.DataFrame()
+
+
+for i in range(0,len(test.index)):
+    variable = pd.DataFrame(pd.Series(svd_ambiente.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+    test_ambiente = test_ambiente.append(variable, ignore_index = True) 
+    
+    
+#entreno modelo comida
+
+train[['id_usuario','id_restaurante','rating_comida','fecha']].to_csv('surprise_comida.csv',index= False)
+
+file_path ='knn_comida.csv'
+
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+
+svd_comida = SVD(n_epochs=100, lr_all=0.002, reg_all= 0.1)
+
+
+# Retrieve the trainset.
+trainset = data.build_full_trainset()
+
+svd_comida.train(trainset)
+
+
+from sklearn.externals import joblib
+joblib.dump(svd_comida,'svd_comida_V2.pkl') 
+
+#con esto se carga
+
+svd_comida = joblib.load('svd_comida.pkl') 
+
+test_comida = pd.DataFrame()
+
+
+for i in range(0,len(test.index)):
+    variable = pd.DataFrame(pd.Series(svd_comida.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+    test_comida = test_comida.append(variable, ignore_index = True) 
+
+#entreno modelo servicio
+
+train[['id_usuario','id_restaurante','rating_servicio','fecha']].to_csv('surprise_servicio.csv',index= False)
+
+file_path ='knn_servicio.csv'
+
+
+reader = Reader(line_format='user item rating timestamp', sep=',',skip_lines=1)
+
+data = Dataset.load_from_file(file_path, reader=reader)
+
+svd_servicio = SVD(n_epochs=100, lr_all=0.002, reg_all= 0.1)
+
+
+# Retrieve the trainset.
+trainset = data.build_full_trainset()
+
+svd_servicio.train(trainset)
+
+
+from sklearn.externals import joblib
+joblib.dump(svd_servicio,'svd_servicio_V2.pkl') 
+
+#con esto se carga
+
+svd_servicio = joblib.load('svd_servicio.pkl') 
+
+test_servicio = pd.DataFrame()
+
+
+for i in range(0,len(test.index)):
+    variable = pd.DataFrame(pd.Series(svd_servicio.predict(test.id_usuario.astype(str)[i],test.id_restaurante.astype(str)[i]).est).values)
+    test_servicio = test_servicio.append(variable, ignore_index = True) 
+
+
+test_entrega = pd.concat(objs=(test[['id_usuario','id_restaurante','fecha']],test_ambiente,test_comida,test_servicio), axis=1,ignore_index=0)
+test_entrega.columns = ['id_usuario','id_restaurante','fecha','rating_ambiente','rating_comida','rating_servicio']
+
+test_entrega.to_csv('pablot-02-svd.csv',index=False)
+
+entrega = svd_pred_all_V2(test)
+
+entrega['rating_comida'] = np.where(entrega['rating_comida']>3,3,entrega['rating_comida'])
+entrega['rating_ambiente'] = np.where(entrega['rating_ambiente']>3,3,entrega['rating_ambiente'])
+entrega['rating_servicio'] = np.where(entrega['rating_servicio']>3,3,entrega['rating_servicio'])
+
+entrega.to_csv('pablot_12-svd.csv',index=False)
